@@ -1,12 +1,11 @@
 package main.java.org.example;
 
-
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class Main {
+public class Main{
 
     private static List<String> inputFiles = new ArrayList<>();
     private static String outputPath = "";
@@ -15,7 +14,7 @@ public class Main {
     private static boolean shortStats = false;
     private static boolean fullStats = false;
 
-    private static List<Integer> integers = new ArrayList<>();
+    private static List<Long> integers = new ArrayList<>();
     private static List<Double> floats = new ArrayList<>();
     private static List<String> strings = new ArrayList<>();
 
@@ -26,7 +25,7 @@ public class Main {
             writeOutputFiles();
             printStatistics();
         } catch (Exception e) {
-            System.err.println("Ошибка: " + e.getMessage());
+            System.err.println("Ошибка: " + e);
         }
     }
 
@@ -34,7 +33,7 @@ public class Main {
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "-o":
-                    outputPath = args[++i];
+                    outputPath = args[++i].replace("/","\\");
                     break;
                 case "-p":
                     prefix = args[++i];
@@ -54,12 +53,24 @@ public class Main {
         }
         if (outputPath.isEmpty()) {
             outputPath = ".";
+        } else {
+            outputPath += "\\";
         }
     }
 
     private static void processFiles() throws IOException {
         for (String fileName : inputFiles) {
-            try (BufferedReader reader = Files.newBufferedReader(Paths.get(fileName))) {
+            Path filePath = Paths.get(fileName);
+            if (!Files.exists(filePath)) {
+                System.err.println("Ошибка: Файл не существует - " + fileName);
+                continue;
+            }
+            if (!Files.isReadable(filePath)) {
+                System.err.println("Ошибка: Файл не доступен для чтения - " + fileName);
+                continue;
+            }
+
+            try (BufferedReader reader = Files.newBufferedReader(filePath)) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     categorizeData(line);
@@ -72,7 +83,7 @@ public class Main {
 
     private static void categorizeData(String data) {
         if (data.matches("-?\\d+")) {
-            integers.add(Integer.parseInt(data));
+            integers.add(Long.parseLong(data));
         } else if (data.matches("-?\\d*\\.\\d+([eE]-?\\d+)?")) {
             floats.add(Double.parseDouble(data));
         } else {
@@ -94,12 +105,14 @@ public class Main {
 
     private static void writeToFile(String fileName, List<String> data) throws IOException {
         Path filePath = Paths.get(outputPath, prefix + fileName);
-        try (BufferedWriter writer = Files.newBufferedWriter(filePath, appendMode ? StandardOpenOption.APPEND : StandardOpenOption.CREATE)) {
+        File f = new File(outputPath.equals(".") ? prefix + fileName : outputPath + prefix + fileName);
+        try (BufferedWriter writer = Files.newBufferedWriter(filePath, appendMode && f.exists() ? StandardOpenOption.APPEND : StandardOpenOption.TRUNCATE_EXISTING)) {
             for (String line : data) {
                 writer.write(line);
                 writer.newLine();
             }
         }
+
     }
 
     private static void printStatistics() {
@@ -123,8 +136,8 @@ public class Main {
         if (fullStats) {
             System.out.println("Минимум: " + Collections.min(integers));
             System.out.println("Максимум: " + Collections.max(integers));
-            System.out.println("Сумма: " + integers.stream().mapToInt(Integer::intValue).sum());
-            System.out.println("Среднее: " + integers.stream().mapToInt(Integer::intValue).average().orElse(0));
+            System.out.println("Сумма: " + integers.stream().mapToInt(Long::intValue).sum());
+            System.out.println("Среднее: " + integers.stream().mapToInt(Long::intValue).average().orElse(0));
         }
     }
 
